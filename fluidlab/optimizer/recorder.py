@@ -97,7 +97,10 @@ class Recorder:
                 cv2.imwrite(f'tmp/replay/{i:04d}.png', img[:, :, ::-1])
             else:
                 if not is_on_server():
-                    taichi_env.render('human')
+                    if hasattr(taichi_env.loss, 'tgt_particles_x'):
+                        taichi_env.render('human', taichi_env.loss.tgt_particles_x)
+                    else:
+                        taichi_env.render('human')
 
 
 def record_target(env, path=None, user_input=False):

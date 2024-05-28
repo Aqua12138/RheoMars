@@ -51,9 +51,9 @@ def main():
         replay_target(env)
     elif args.replay_policy:
         if cfg is not None:
-            env = gym.make(cfg.EXP.env_name, seed=cfg.EXP.seed, loss=False, loss_type='diff', renderer_type=args.renderer_type)
+            env = gym.make(cfg.EXP.env_name, seed=cfg.EXP.seed, loss=True, loss_type='diff', renderer_type=args.renderer_type)
         else:
-            env = gym.make(args.env_name, seed=args.seed, loss=False, loss_type='diff', renderer_type=args.renderer_type)
+            env = gym.make(args.env_name, seed=args.seed, loss=True, loss_type='diff', renderer_type=args.renderer_type)
         replay_policy(env, path=args.path)
     else:
         logger = Logger(args.exp_name)

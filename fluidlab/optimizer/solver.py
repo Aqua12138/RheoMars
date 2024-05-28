@@ -93,7 +93,10 @@ class Solver:
                 img = taichi_env.render('rgb_array')
                 self.logger.write_img(img, iteration, i)
             else:
-                taichi_env.render('human')
+                if hasattr(taichi_env.loss, 'tgt_particles_x'):
+                    taichi_env.render('human', taichi_env.loss.tgt_particles_x)
+                else:
+                    taichi_env.render('human')
 
 def solve_policy(env, logger, cfg):
     env.reset()
