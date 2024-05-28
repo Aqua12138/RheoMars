@@ -23,6 +23,7 @@ def get_args():
     parser.add_argument("--replay_target", action='store_true')
     parser.add_argument("--path", type=str, default=None)
     parser.add_argument("--renderer_type", type=str, default='GGUI')
+    parser.add_argument("--loss_type", type=str, default='default')
 
 
     args = parser.parse_args()
@@ -56,7 +57,7 @@ def main():
         replay_policy(env, path=args.path)
     else:
         logger = Logger(args.exp_name)
-        env = gym.make(cfg.EXP.env_name, seed=cfg.EXP.seed, loss=True, loss_type='diff', renderer_type=args.renderer_type)
+        env = gym.make(cfg.EXP.env_name, seed=cfg.EXP.seed, loss=True, loss_type=args.loss_type, renderer_type=args.renderer_type)
         solve_policy(env, logger, cfg.SOLVER)
 
 if __name__ == '__main__':
