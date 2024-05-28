@@ -207,6 +207,7 @@ import taichi as ti
 dprecision = 32
 # dprecision = 64
 DTYPE_TI = eval(f'ti.f{dprecision}')
+DTYPE_TI_64 = eval(f'ti.f{64}')
 DTYPE_NP = eval(f'np.float{dprecision}')
 DTYPE_TC = eval(f'torch.float{dprecision}')
 

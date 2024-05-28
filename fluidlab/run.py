@@ -8,7 +8,7 @@ import numpy as np
 import fluidlab.envs
 from fluidlab.utils.logger import Logger
 from fluidlab.optimizer.solver import solve_policy
-from fluidlab.optimizer.recorder import record_target, replay_policy, replay_target
+from fluidlab.optimizer.recorder import record_target, replay_policy, replay_target, record_target_grid, debug
 from fluidlab.utils.config import load_config
 
 def get_args():
@@ -24,6 +24,8 @@ def get_args():
     parser.add_argument("--path", type=str, default=None)
     parser.add_argument("--renderer_type", type=str, default='GGUI')
     parser.add_argument("--loss_type", type=str, default='default')
+    parser.add_argument("--record_target_grid", action='store_true')
+    parser.add_argument("--debug", action='store_true')
 
 
     args = parser.parse_args()
@@ -55,6 +57,18 @@ def main():
         else:
             env = gym.make(args.env_name, seed=args.seed, loss=True, loss_type='diff', renderer_type=args.renderer_type)
         replay_policy(env, path=args.path)
+    elif args.record_target_grid:
+        if cfg is not None:
+            env = gym.make(cfg.EXP.env_name, seed=cfg.EXP.seed, loss=False, loss_type='diff', renderer_type=args.renderer_type)
+        else:
+            env = gym.make(args.env_name, seed=args.seed, loss=False, loss_type='diff', renderer_type=args.renderer_type)
+        record_target_grid(env, user_input=args.user_input)
+    elif args.debug:
+        if cfg is not None:
+            env = gym.make(cfg.EXP.env_name, seed=cfg.EXP.seed, loss=True, loss_type='diff', renderer_type=args.renderer_type)
+        else:
+            env = gym.make(args.env_name, seed=args.seed, loss=True, loss_type='diff', renderer_type=args.renderer_type)
+        debug(env)
     else:
         logger = Logger(args.exp_name)
         env = gym.make(cfg.EXP.env_name, seed=cfg.EXP.seed, loss=True, loss_type=args.loss_type, renderer_type=args.renderer_type)
