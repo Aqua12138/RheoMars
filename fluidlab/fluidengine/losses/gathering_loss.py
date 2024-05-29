@@ -34,6 +34,10 @@ class GatheringLoss(Loss):
     def build(self, sim):
         self.density_weight = self.weights['density']
         self.density_loss = ti.field(dtype=DTYPE_TI, shape=(self.max_loss_steps,), needs_grad=True)
+
+        self.sdf_loss = ti.field(dtype=DTYPE_TI_64, shape=(self.max_loss_steps,), needs_grad=True)
+        self.sdf_weight = self.weights['sdf']
+
         if self.temporal_range_type == 'last':
             self.temporal_range = [self.max_loss_steps-1, self.max_loss_steps]
         elif self.temporal_range_type == 'all':
@@ -44,7 +48,13 @@ class GatheringLoss(Loss):
             self.plateau_count = 0
 
         self.target_density = ti.field(dtype=DTYPE_TI_64, shape=sim.res)
+        self.target_sdf = ti.field(dtype=DTYPE_TI_64, shape=sim.res)
+        self.nearest_point = ti.Vector.field(sim.dim, dtype=DTYPE_TI_64, shape=sim.res)
+        self.target_sdf_copy = ti.field(dtype=DTYPE_TI_64, shape=sim.res)
+        self.nearest_point_copy = ti.Vector.field(sim.dim, dtype=DTYPE_TI_64, shape=sim.res)
+        self.inf = 1000
         super(GatheringLoss, self).build(sim)
+
         self.particle_mass = self.sim.particles_i.mass
         self.grid_mass = ti.field(dtype=DTYPE_TI_64, shape=(*self.res,), needs_grad=True)
         self.grid_mass.from_numpy(self.grids)
@@ -76,6 +86,7 @@ class GatheringLoss(Loss):
     def reset_grad(self):
         super(GatheringLoss, self).reset_grad()
         self.density_loss.grad.fill(0)
+        self.sdf_loss.grad.fill(0)
         
     def load_target(self, path):
         self.target = pkl.load(open(path, 'rb'))
@@ -83,23 +94,64 @@ class GatheringLoss(Loss):
         self.tgt_particles_x.from_numpy(self.target['last_pos'])
         self.grids = self.target['last_grid']
         self.target_density.from_numpy(self.grids)
+        self.update_target()
         print(f'===>  Target loaded from {path}.')
 
+    # -----------------------------------------------------------
+    # preprocess target to calculate sdf
+    # -----------------------------------------------------------
+
+    def update_target(self):
+        self.target_sdf_copy.fill(self.inf)
+        for i in range(self.n_grid * 2):
+            self.update_target_sdf()
+    @ti.func
+    def norm(self, x, eps=1e-8):
+        return ti.sqrt(x.dot(x) + eps)
+
+    @ti.kernel
+    def update_target_sdf(self):
+        for I in ti.grouped(self.target_sdf):
+            self.target_sdf[I] = self.inf
+            grid_pos = ti.cast(I * self.dx, DTYPE_TI_64)
+            if self.target_density[I] > 1e-4:  # TODO: make it configurable
+                self.target_sdf[I] = 0.
+                self.nearest_point[I] = grid_pos
+            else:
+                for offset in ti.grouped(ti.ndrange(*(((-3, 3),) * self.dim))):
+                    v = I + offset
+                    if v.min() >= 0 and v.max() < self.n_grid and ti.abs(offset).sum() != 0:
+                        if self.target_sdf_copy[v] < self.inf:
+                            nearest_point = self.nearest_point_copy[v]
+                            dist = self.norm(grid_pos - nearest_point)
+                            if dist < self.target_sdf[I]:
+                                self.nearest_point[I] = nearest_point
+                                self.target_sdf[I] = dist
+        for I in ti.grouped(self.target_sdf):
+            self.target_sdf_copy[I] = self.target_sdf[I]
+            self.nearest_point_copy[I] = self.nearest_point[I]
+
+    # other
     @ti.kernel
     def clear_losses(self):
         self.density_loss.fill(0)
         self.density_loss.grad.fill(0)
 
+        self.sdf_loss.fill(0)
+        self.sdf_loss.grad.fill(0)
+
     def compute_step_loss(self, s, f):
         self.compute_grid_mass(f)
         self.iou()
         self.compute_density_loss_kernel(s)
+        self.compute_sdf_loss_kernel(s)
 
         self.sum_up_loss_kernel(s)
 
     def compute_step_loss_grad(self, s, f):
         self.sum_up_loss_kernel.grad(s)
 
+        self.compute_sdf_loss_kernel.grad(s)
         self.compute_density_loss_kernel.grad(s)
         self.compute_grid_mass_grad(f)
 
@@ -129,9 +181,16 @@ class GatheringLoss(Loss):
     def compute_density_loss_kernel(self, s: ti.i32):
         for I in ti.grouped(ti.ndrange(*self.res)):
             self.density_loss[s] += ti.abs(self.grid_mass[I] - self.target_density[I])
+
+    @ti.kernel
+    def compute_sdf_loss_kernel(self, s: ti.i32):
+        for I in ti.grouped(self.grid_mass):
+            self.sdf_loss[s] += self.target_sdf[I] * self.grid_mass[I]
+
     @ti.kernel
     def sum_up_loss_kernel(self, s: ti.i32):
         self.step_loss[s] += self.density_loss[s] * self.density_weight
+        self.step_loss[s] += self.sdf_loss[s] * self.sdf_weight
 
     @ti.kernel
     def compute_total_loss_kernel(self, s_start: ti.i32, s_end: ti.i32):
