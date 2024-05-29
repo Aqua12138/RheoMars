@@ -93,11 +93,11 @@ class Gathering2Env(FluidEnv):
 
     def setup_loss(self):
         self.taichi_env.setup_loss(
-            loss_cls=Gathering2Loss,
+            loss_cls=ShapeMatchingLoss,
             type=self.loss_type,
             matching_mat=MILK_VIS,
             target_file=self.target_file,
-            weights={'sdf': 0, 'density': 10, 'contact': 0, 'is_soft_contact': False}
+            weights={'chamfer': 1}
         )
 
     def render(self, mode='human'):

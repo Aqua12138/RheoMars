@@ -55,16 +55,9 @@ class GatheringEnv(FluidEnv):
     def setup_bodies(self):
         self.taichi_env.add_body(
             type='cube',
-            lower=(0.45, 0.60, 0.25),
+            lower=(0.45, 0.50, 0.25),
             upper=(0.55, 0.70, 0.35),
             material=MILK_VIS,
-        )
-
-        self.taichi_env.add_body(
-            type='cube',
-            lower=(0.45, 0.50, 0.25),
-            upper=(0.55, 0.60, 0.35),
-            material=COFFEE_VIS,
         )
 
     def setup_boundary(self):
@@ -99,8 +92,9 @@ class GatheringEnv(FluidEnv):
 
     def setup_loss(self):
         self.taichi_env.setup_loss(
-            loss_cls=LatteArtStirLoss,
-            type=self.loss_type,
+            loss_cls=ShapeMatchingLoss,
+            temporal_range_type='all',
+            matching_mat=MILK_VIS,
             target_file=self.target_file,
             weights={'chamfer': 1}
         )
