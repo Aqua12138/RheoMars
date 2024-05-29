@@ -11,3 +11,4 @@ from .pouring_loss import *
 from .mixing_loss import *
 from .transporting_loss import *
 from .gathering2_loss import *
+from .gathering_loss import *
