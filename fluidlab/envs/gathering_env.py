@@ -13,12 +13,24 @@ from fluidlab.fluidengine.losses import *
 class GatheringEnv(FluidEnv):
     def __init__(self, version, loss=True, loss_type='diff', seed=None, renderer_type='GGUI'):
 
+        # Gathering_pos-v0.pkl ShapeMatchingLoss(DynamicDistanceLoss)
+        # Gathering_grid-v0.pkl SDFDensityLoss
+        target_file = 'Gathering_pos-v0.pkl' # Gathering_pos-v0.pkl
+
+        self.target_file = get_tgt_path(target_file)
+        if target_file == "Gathering_pos-v0.pkl":
+            self.Loss = DynamicDistanceLoss
+            self.weight = {'chamfer': 1}
+        elif target_file == "Gathering_grid-v0.pkl":
+            self.Loss = SDFDensityLoss
+            self.weight = {'density': 1, 'sdf': 100, 'contact': 1, 'is_soft_contact': False}
+
         if seed is not None:
             self.seed(seed)
 
         self.horizon = 1000
         self.horizon_action = 1000
-        self.target_file = get_tgt_path('Gathering-v0.pkl')
+
         self._n_obs_ptcls_per_body = 1000
         self.loss = loss
         self.loss_type = loss_type
@@ -92,11 +104,10 @@ class GatheringEnv(FluidEnv):
 
     def setup_loss(self):
         self.taichi_env.setup_loss(
-            loss_cls=ShapeMatchingLoss,
-            temporal_range_type='all',
-            matching_mat=MILK_VIS,
+            loss_cls=self.Loss,
+            type=self.loss_type,
             target_file=self.target_file,
-            weights={'chamfer': 1}
+            weights=self.weight
         )
 
     def render(self, mode='human'):

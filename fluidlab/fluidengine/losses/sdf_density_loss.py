@@ -11,25 +11,24 @@ import matplotlib.pyplot as plt
 from .loss import Loss
 
 @ti.data_oriented
-class GatheringLoss(Loss):
+class SDFDensityLoss(Loss):
     def __init__(
             self,
-            matching_mat,
-            temporal_range_type     = 'expand',
-            temporal_init_range_end = 50,
-            plateau_count_limit     = 5,
-            temporal_expand_speed   = 50,
-            plateau_thresh          = [0.01, 0.5],
+            type,
             **kwargs,
         ):
-        super(GatheringLoss, self).__init__(**kwargs)
+        super(SDFDensityLoss, self).__init__(**kwargs)
 
-        self.matching_mat            = matching_mat
-        self.temporal_range_type     = temporal_range_type
-        self.temporal_init_range_end = temporal_init_range_end
-        self.plateau_count_limit     = plateau_count_limit
-        self.temporal_expand_speed   = temporal_expand_speed
-        self.plateau_thresh          = plateau_thresh
+        if type == 'diff':
+            self.plateau_count_limit     = 5
+            self.temporal_expand_speed   = 50
+            self.temporal_init_range_end = 50
+            self.temporal_range_type     = 'expand'
+            self.plateau_thresh          = [0.01, 0.5]
+        elif type == 'default':
+            self.temporal_range_type     = 'all'
+        else:
+            self.temporal_range_type     = 'last'
 
     def build(self, sim):
         self.density_weight = self.weights['density']
@@ -60,7 +59,7 @@ class GatheringLoss(Loss):
         self.nearest_point_copy = ti.Vector.field(sim.dim, dtype=DTYPE_TI_64, shape=sim.res)
 
         self.inf = 1000
-        super(GatheringLoss, self).build(sim)
+        super(SDFDensityLoss, self).build(sim)
 
         self.primitive = self.agent.effectors[0].mesh
         self.particle_mass = self.sim.particles_i.mass
@@ -92,7 +91,7 @@ class GatheringLoss(Loss):
 
         return I / (U - I)
     def reset_grad(self):
-        super(GatheringLoss, self).reset_grad()
+        super(SDFDensityLoss, self).reset_grad()
         self.density_loss.grad.fill(0)
         self.sdf_loss.grad.fill(0)
         self.contact_loss.grad.fill(0)
@@ -287,8 +286,10 @@ class GatheringLoss(Loss):
 
     def expand_temporal_range(self):
         if self.temporal_range_type == 'expand':
-            loss_improved = (self.best_loss - self.total_loss[None])
-            loss_improved_rate = loss_improved / self.best_loss
+            loss_improved = (self.best_loss - self.total_loss[None]) # loss 上升值
+            loss_improved_rate = loss_improved / self.best_loss # loss 上升速度
+
+            # 判断停滞情况
             if loss_improved_rate < self.plateau_thresh[0] or loss_improved < self.plateau_thresh[1]:
                 self.plateau_count += 1
                 print('Plateaued!!!', self.plateau_count)
