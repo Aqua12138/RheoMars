@@ -214,10 +214,15 @@ class IceCreamStaticPolicy(TrainablePolicy):
             self.optim.lr = self.optim.init_lr * 0.1
             print(f'lr reduced to {self.optim.lr}')
 
-
 class GatheringPolicy(TrainablePolicy):
     def __init__(self, *args, **kwargs):
         super(GatheringPolicy, self).__init__(*args, **kwargs)
+        self.trainable = np.full(self.comp_actions_shape[0], False)
+        self.trainable[:-1] = True
+
+class GatheringEasyPolicy(TrainablePolicy):
+    def __init__(self, *args, **kwargs):
+        super(GatheringEasyPolicy, self).__init__(*args, **kwargs)
 
         self.trainable = np.full(self.comp_actions_shape[0], False)
         self.status = np.full(self.comp_actions_shape[0], 0)
@@ -256,7 +261,7 @@ class GatheringPolicy(TrainablePolicy):
                 print(f'feeze till {self.freeze_till}')
                 break
 
-        super(GatheringPolicy, self).optimize(grads, loss_info)
+        super(GatheringEasyPolicy, self).optimize(grads, loss_info)
 
 
 class GatheringOPolicy(TrainablePolicy):

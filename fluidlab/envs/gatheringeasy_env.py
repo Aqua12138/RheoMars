@@ -117,4 +117,4 @@ class GatheringEasyEnv(FluidEnv):
         )
 
     def trainable_policy(self, optim_cfg, init_range):
-        return GatheringPolicy(optim_cfg, init_range, self.agent.action_dim, self.horizon_action, self.action_range, fix_dim=[1])
+        return GatheringEasyPolicy(optim_cfg, init_range, self.agent.action_dim, self.horizon_action, self.action_range, fix_dim=[1])

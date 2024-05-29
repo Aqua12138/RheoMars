@@ -97,7 +97,92 @@ class Recorder:
                 cv2.imwrite(f'tmp/replay/{i:04d}.png', img[:, :, ::-1])
             else:
                 if not is_on_server():
+                    if hasattr(taichi_env.loss, 'tgt_particles_x'):
+                        taichi_env.render('human', taichi_env.loss.tgt_particles_x)
+                    else:
+                        taichi_env.render('human')
+
+
+    def record_target_grid(self, user_input=False):
+        policy = self.env.demo_policy(user_input)
+        taichi_env = self.env.taichi_env
+
+        # initialize ...
+        taichi_env_state = taichi_env.get_state()
+
+        # start recording
+        target = {
+            'x': [],
+            'used': [],
+            'mat': None
+        }
+        taichi_env.set_state(**taichi_env_state)
+        action_p = policy.get_actions_p()
+        if action_p is not None:
+            taichi_env.apply_agent_action_p(action_p)
+
+        save = False
+        if save:
+            os.makedirs(f'tmp/recorder', exist_ok=True)
+
+        for i in range(self.env.horizon):
+            if i < self.env.horizon_action:
+                action = policy.get_action_v(i)
+            else:
+                action = None
+            taichi_env.step(action)
+
+            # get state
+            if self.target_file is not None:
+                cur_state = taichi_env.get_state()
+                if taichi_env.has_particles:
+                    target['x'].append(cur_state['state']['x'])
+                    target['used'].append(cur_state['state']['used'])
+
+            if save:
+                img = taichi_env.render('rgb_array')
+                cv2.imwrite(f'tmp/recorder/{i:04d}.png', img[:, :, ::-1])
+            else:
+                if not is_on_server():
                     taichi_env.render('human')
+
+        if self.target_file is not None:
+            target['mat'] = taichi_env.simulator.particles_i.mat.to_numpy()
+            target['last_grid'] = taichi_env.simulator.grid.mass.to_numpy()[-2, ...]
+            target['last_pos'] = target['x'][-1]
+
+            if os.path.exists(self.target_file):
+                os.remove(self.target_file)
+            pkl.dump(target, open(self.target_file, 'wb'))
+            print(f'===> New target generated and dumped to {self.target_file}.')
+
+    def debug(self):
+        policy = self.env.demo_policy(user_input=True)
+        taichi_env = self.env.taichi_env
+
+        # initialize ...
+        taichi_env_state = taichi_env.get_state()
+
+
+        taichi_env.set_state(**taichi_env_state)
+        action_p = policy.get_actions_p()
+        if action_p is not None:
+            taichi_env.apply_agent_action_p(action_p)
+
+        for i in range(self.env.horizon):
+            if i < self.env.horizon_action:
+                action = policy.get_action_v(i)
+            else:
+                action = None
+            taichi_env.step(action)
+            # debug
+            print(taichi_env.get_step_loss())
+            if not is_on_server():
+                if hasattr(taichi_env.loss, 'tgt_particles_x'):
+                    taichi_env.render('human', taichi_env.loss.tgt_particles_x)
+                else:
+                    taichi_env.render('human')
+
 
 
 def record_target(env, path=None, user_input=False):
@@ -117,3 +202,15 @@ def replay_policy(env, path=None):
 
     recorder = Recorder(env)
     recorder.replay_policy(path)
+
+def record_target_grid(env, user_input=False):
+    env.reset()
+
+    recorder = Recorder(env)
+    recorder.record_target_grid(user_input)
+
+def debug(env):
+    env.reset()
+
+    recorder = Recorder(env)
+    recorder.debug()

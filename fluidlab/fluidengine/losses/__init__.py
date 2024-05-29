@@ -10,3 +10,5 @@ from .circulation_loss import *
 from .pouring_loss import *
 from .mixing_loss import *
 from .transporting_loss import *
+from .sdf_density_loss import *
+from .dynamic_distance_loss import *
