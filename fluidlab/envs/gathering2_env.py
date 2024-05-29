@@ -97,7 +97,7 @@ class Gathering2Env(FluidEnv):
             temporal_range_type='all',
             matching_mat=MILK_VIS,
             target_file=self.target_file,
-            weights={'density': 10, 'sdf': 10}
+            weights={'density': 1, 'sdf': 100, 'contact': 1, 'is_soft_contact': False}
         )
 
     def render(self, mode='human'):

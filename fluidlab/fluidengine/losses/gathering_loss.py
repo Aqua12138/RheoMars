@@ -38,6 +38,12 @@ class GatheringLoss(Loss):
         self.sdf_loss = ti.field(dtype=DTYPE_TI_64, shape=(self.max_loss_steps,), needs_grad=True)
         self.sdf_weight = self.weights['sdf']
 
+        self.contact_loss = ti.field(dtype=DTYPE_TI_64, shape=(self.max_loss_steps,), needs_grad=True)
+        self.min_dist = ti.field(dtype=DTYPE_TI_64, shape=(self.max_loss_steps,), needs_grad=True)
+        self.dist_norm = ti.field(dtype=DTYPE_TI_64, shape=(self.max_loss_steps,), needs_grad=True)
+        self.contact_weight = self.weights['contact']
+        self.soft_contact_loss = self.weights['is_soft_contact']
+
         if self.temporal_range_type == 'last':
             self.temporal_range = [self.max_loss_steps-1, self.max_loss_steps]
         elif self.temporal_range_type == 'all':
@@ -52,9 +58,11 @@ class GatheringLoss(Loss):
         self.nearest_point = ti.Vector.field(sim.dim, dtype=DTYPE_TI_64, shape=sim.res)
         self.target_sdf_copy = ti.field(dtype=DTYPE_TI_64, shape=sim.res)
         self.nearest_point_copy = ti.Vector.field(sim.dim, dtype=DTYPE_TI_64, shape=sim.res)
+
         self.inf = 1000
         super(GatheringLoss, self).build(sim)
 
+        self.primitive = self.agent.effectors[0].mesh
         self.particle_mass = self.sim.particles_i.mass
         self.grid_mass = ti.field(dtype=DTYPE_TI_64, shape=(*self.res,), needs_grad=True)
         self.grid_mass.from_numpy(self.grids)
@@ -87,7 +95,10 @@ class GatheringLoss(Loss):
         super(GatheringLoss, self).reset_grad()
         self.density_loss.grad.fill(0)
         self.sdf_loss.grad.fill(0)
-        
+        self.contact_loss.grad.fill(0)
+        self.min_dist.grad.fill(0)
+        self.dist_norm.grad.fill(0)
+
     def load_target(self, path):
         self.target = pkl.load(open(path, 'rb'))
         self.tgt_particles_x = ti.Vector.field(self.dim, dtype=DTYPE_TI, shape=self.n_particles)
@@ -140,17 +151,31 @@ class GatheringLoss(Loss):
         self.sdf_loss.fill(0)
         self.sdf_loss.grad.fill(0)
 
+        self.contact_loss.fill(0)
+        self.contact_loss.grad.fill(0)
+
+        if not self.soft_contact_loss:
+            self.min_dist.fill(self.inf)
+        else:
+            self.min_dist.fill(0)
+        self.min_dist.grad.fill(0)
+        self.dist_norm.fill(0)
+        self.dist_norm.grad.fill(0)
+
+
     def compute_step_loss(self, s, f):
         self.compute_grid_mass(f)
         self.iou()
         self.compute_density_loss_kernel(s)
         self.compute_sdf_loss_kernel(s)
+        self.compute_contact_loss(s, f)
 
         self.sum_up_loss_kernel(s)
 
     def compute_step_loss_grad(self, s, f):
         self.sum_up_loss_kernel.grad(s)
 
+        self.compute_contact_loss_grad(s, f)
         self.compute_sdf_loss_kernel.grad(s)
         self.compute_density_loss_kernel.grad(s)
         self.compute_grid_mass_grad(f)
@@ -162,6 +187,22 @@ class GatheringLoss(Loss):
 
     def compute_grid_mass_grad(self, f):
         self.compute_grid_mass_kernel.grad(f)
+
+    def compute_contact_loss(self, s, f):
+        if self.soft_contact_loss:
+            self.compute_contact_distance_normalize_kernel(s, f)
+            self.compute_soft_contact_distance_kernel(s, f)
+        else:
+            self.compute_contact_distance_kernel(s, f)
+        self.compute_contact_loss_kernel(s)
+
+    def compute_contact_loss_grad(self, s, f):
+        self.compute_contact_loss_kernel.grad(s)
+        if self.soft_contact_loss:
+            self.compute_soft_contact_distance_kernel.grad(s, f)
+            self.compute_contact_distance_normalize_kernel.grad(s, f)
+        else:
+            self.compute_contact_distance_kernel.grad(s, f)
 
     @ti.kernel
     def compute_grid_mass_kernel(self, f: ti.i32):
@@ -188,14 +229,44 @@ class GatheringLoss(Loss):
             self.sdf_loss[s] += self.target_sdf[I] * self.grid_mass[I]
 
     @ti.kernel
+    def compute_contact_distance_normalize_kernel(self, s: ti.i32, f: ti.i32):
+        for p in range(self.n_particles):
+            if not (self.isnan(self.particle_x[f, p][0]) and self.isnan(self.particle_x[f, p][0]) \
+                    and self.isnan(self.particle_x[f, p][0])):
+                d_ij = max(self.primitive.sdf(f, self.particle_x[f, p]), 0.)
+                ti.atomic_add(self.dist_norm[s], self.soft_weight(d_ij))
+
+    @ti.kernel
+    def compute_soft_contact_distance_kernel(self, s: ti.i32, f: ti.i32):
+        for p in range(self.n_particles):
+            if not (self.isnan(self.particle_x[f, p][0]) and self.isnan(self.particle_x[f, p][0]) \
+                    and self.isnan(self.particle_x[f, p][0])):
+                d_ij = max(self.primitive.sdf(f, self.particle_x[f, p]), 0.)
+                ti.atomic_add(self.min_dist[s], d_ij * self.soft_weight(d_ij) / self.dist_norm[s])
+
+    @ti.kernel
+    def compute_contact_distance_kernel(self, s: ti.i32, f: ti.i32):
+        for p in range(self.n_particles):
+            if not (self.isnan(self.particle_x[f, p][0]) and self.isnan(self.particle_x[f, p][0]) \
+                    and self.isnan(self.particle_x[f, p][0])):
+                d_ij = max(self.primitive.sdf(f, self.particle_x[f, p]), 0.)
+                ti.atomic_min(self.min_dist[s], max(d_ij, 0.))
+
+    @ti.kernel
+    def compute_contact_loss_kernel(self, s: ti.i32):
+        self.contact_loss[s] += self.min_dist[s] ** 2
+
+    @ti.kernel
     def sum_up_loss_kernel(self, s: ti.i32):
         self.step_loss[s] += self.density_loss[s] * self.density_weight
         self.step_loss[s] += self.sdf_loss[s] * self.sdf_weight
+        self.step_loss[s] += self.contact_loss[s] * self.contact_weight
 
     @ti.kernel
     def compute_total_loss_kernel(self, s_start: ti.i32, s_end: ti.i32):
         for s in range(s_start, s_end):
             self.total_loss[None] += self.step_loss[s]
+
 
     def get_final_loss(self):
         self.compute_total_loss_kernel(self.temporal_range[0], self.temporal_range[1])
