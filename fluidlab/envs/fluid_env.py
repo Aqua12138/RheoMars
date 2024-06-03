@@ -1,7 +1,7 @@
 import os
 import gym
 import numpy as np
-from gym.spaces import Box
+from gym.spaces import Box, Dict
 from fluidlab.configs.macros import *
 from fluidlab.fluidengine.taichi_env import TaichiEnv
 import fluidlab.utils.misc as misc_utils
@@ -10,7 +10,7 @@ class FluidEnv(gym.Env):
     '''
     Base env class.
     '''    
-    def __init__(self, version, loss=True, loss_type='diff', seed=None, renderer_type='GGUI'):
+    def __init__(self, version, loss=True, loss_type='diff', seed=None, renderer_type='GGUI', perc_type="physics"):
         if seed is not None:
             self.seed(seed)
 
@@ -22,6 +22,7 @@ class FluidEnv(gym.Env):
         self.loss_type             = loss_type
         self.action_range          = np.array([-1.0, 1.0])
         self.renderer_type              = renderer_type
+        self.perc_type             = perc_type
 
         # create a taichi env
         self.taichi_env = TaichiEnv()
@@ -49,7 +50,7 @@ class FluidEnv(gym.Env):
         print(f'===>  {type(self).__name__} built successfully.')
 
     def setup_agent(self):
-        pass
+        self.agent = self.taichi_env.agent
 
     def setup_statics(self):
         # add static mesh-based objects in the scene
@@ -86,42 +87,62 @@ class FluidEnv(gym.Env):
         if self.loss_type == 'default':
             self.horizon = self.horizon_action
         obs = self.reset()
-        self.observation_space = Box(DTYPE_NP(-np.inf), DTYPE_NP(np.inf), obs.shape, dtype=DTYPE_NP)
+        if self.observation_space is None:
+            self.set_observation_space(obs)
         if self.taichi_env.agent is not None:
             self.action_space = Box(DTYPE_NP(self.action_range[0]), DTYPE_NP(self.action_range[1]), (self.taichi_env.agent.action_dim,), dtype=DTYPE_NP)
         else:
             self.action_space = None
+
+    def set_observation_space(self, obs):
+        """根据返回的obs类型设置观察空间"""
+        if isinstance(obs, np.ndarray):
+            self.observation_space = Box(DTYPE_NP(-np.inf), DTYPE_NP(np.inf), shape=obs.shape, dtype=DTYPE_NP)
+        elif isinstance(obs, dict):
+            spaces = {}
+            for key, value in obs.items():
+                spaces[key] = Box(DTYPE_NP(0), DTYPE_NP(1), shape=value.shape, dtype=DTYPE_NP)
+            self.observation_space = Dict(spaces)
+        else:
+            raise TypeError("Unsupported observation type")
 
     def reset(self):
         self.taichi_env.set_state(**self._init_state)
         return self._get_obs()
 
     def _get_obs(self):
-        state = self.taichi_env.get_state_RL()
-        obs   = []
+        if self.perc_type == "physics":
+            state = self.taichi_env.get_state_RL()
+            obs   = []
 
-        if 'x' in state:
-            for body_id in range(self.taichi_env.particles['bodies']['n']):
-                body_n_particles  = self.taichi_env.particles['bodies']['n_particles'][body_id]
-                body_particle_ids = self.taichi_env.particles['bodies']['particle_ids'][body_id]
+            if 'x' in state:
+                for body_id in range(self.taichi_env.particles['bodies']['n']):
+                    body_n_particles  = self.taichi_env.particles['bodies']['n_particles'][body_id]
+                    body_particle_ids = self.taichi_env.particles['bodies']['particle_ids'][body_id]
 
-                step_size = max(1, body_n_particles // self._n_obs_ptcls_per_body)
-                body_x    = state['x'][body_particle_ids][::step_size]
-                body_v    = state['v'][body_particle_ids][::step_size]
-                body_used = state['used'][body_particle_ids][::step_size]
+                    step_size = max(1, body_n_particles // self._n_obs_ptcls_per_body)
+                    body_x    = state['x'][body_particle_ids][::step_size]
+                    body_v    = state['v'][body_particle_ids][::step_size]
+                    body_used = state['used'][body_particle_ids][::step_size]
 
-                obs.append(body_x.flatten())
-                obs.append(body_v.flatten())
-                obs.append(body_used.flatten())
+                    obs.append(body_x.flatten())
+                    obs.append(body_v.flatten())
+                    obs.append(body_used.flatten())
 
-        if 'agent' in state:
-            obs += state['agent']
+            if 'agent' in state:
+                obs += state['agent']
 
-        if 'smoke_field' in state:
-            obs.append(state['smoke_field']['v'][::10, 60:68, ::10].flatten())
-            obs.append(state['smoke_field']['q'][::10, 60:68, ::10].flatten())
+            if 'smoke_field' in state:
+                obs.append(state['smoke_field']['v'][::10, 60:68, ::10].flatten())
+                obs.append(state['smoke_field']['q'][::10, 60:68, ::10].flatten())
 
-        obs = np.concatenate(obs)
+            obs = np.concatenate(obs)
+        elif self.perc_type == "sensor":
+            obs = {}
+            for sensor in self.agent.sensors:
+                obs[sensor.name] = sensor.get_obs()
+        else:
+            assert False
         return obs
 
     def _get_reward(self):

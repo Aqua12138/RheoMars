@@ -4,8 +4,6 @@ import numpy as np
 import taichi as ti
 from fluidlab.utils.misc import is_on_server
 
-from fluidlab.fluidengine.taichi_env import TaichiEnv
-
 
 class Solver:
     def __init__(self, env, logger=None, cfg=None):

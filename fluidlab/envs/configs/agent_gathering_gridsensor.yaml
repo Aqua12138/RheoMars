@@ -20,6 +20,7 @@ effectors:
 sensors:
   - type: GridSensor3D
     params:
+      sesnor_name: gridsensor3d
       cell_arc: 2
       lat_angle_north: 90
       lat_angle_south: 90

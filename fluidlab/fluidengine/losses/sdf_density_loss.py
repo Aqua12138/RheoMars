@@ -305,4 +305,14 @@ class SDFDensityLoss(Loss):
 
                 self.temporal_range[1] = min(self.max_loss_steps, self.temporal_range[1] + self.temporal_expand_speed)
                 print(f'temporal range expanded to {self.temporal_range}')
+
+    def get_step_loss(self):
+        cur_step_loss = self.step_loss[self.sim.cur_step_global-1]
+        reward = -cur_step_loss
+        loss = cur_step_loss
+
+        loss_info = {}
+        loss_info['reward'] = reward
+        loss_info['loss'] = loss
+        return loss_info
             

@@ -9,7 +9,7 @@ from fluidlab.fluidengine.bodies import Bodies
 from fluidlab.configs.macros import *
 from fluidlab.utils.misc import *
 
-ti.init(arch=ti.gpu, device_memory_GB=8, packed=True)
+ti.init(arch=ti.gpu, device_memory_GB=17, packed=True)
 # ti.init(arch=ti.gpu, device_memory_GB=10, packed=True)
 # ti.init(arch=ti.gpu, device_memory_GB=10, packed=True, debug=True)
 

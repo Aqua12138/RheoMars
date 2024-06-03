@@ -9,7 +9,7 @@ from fluidlab.utils.geom import quaternion_to_rotation_matrix
 
 @ti.data_oriented
 class GridSensor3D(GridSensor):
-    def __init__(self, cell_arc, lat_angle_north, lat_angle_south, lon_angle,
+    def __init__(self, sesnor_name, cell_arc, lat_angle_north, lat_angle_south, lon_angle,
                  max_distance, min_distance, distance_normalization, target_file=None, **kwargs):
         super(GridSensor3D, self).__init__(**kwargs)
         '''
@@ -26,6 +26,7 @@ class GridSensor3D(GridSensor):
 
         '''
         # Geometry
+        self.sensor_name = sesnor_name
         self.m_CellArc = cell_arc
         self.m_LatAngleNorth = lat_angle_north
         self.m_LatAngleSouth = lat_angle_south
@@ -36,6 +37,10 @@ class GridSensor3D(GridSensor):
         self.M = (self.m_LonAngle // self.m_CellArc) * 2 # gridsensor m
         self.N = (self.m_LatAngleNorth + self.m_LatAngleSouth) // self.m_CellArc # gridsensor n
         self.target_file = target_file
+
+    @property
+    def name(self):
+        return self.sensor_name
 
     def build(self, sim):
         particle_state = ti.types.struct(
