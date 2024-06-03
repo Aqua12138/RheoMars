@@ -72,6 +72,14 @@ class TaichiEnv:
                 mesh_cfg=effector_cfg.get('mesh', None),
                 boundary_cfg=effector_cfg.boundary,
             )
+        if hasattr(agent_cfg, 'sensors'):
+            for sensor_cfg_dict in agent_cfg.sensors:
+                sensor_cfg = CfgNode(sensor_cfg_dict)
+                self.agent.add_sensor(
+                    type=sensor_cfg.type,
+                    params=sensor_cfg.params
+                )
+
 
     def setup_renderer(self, type='GGUI', **kwargs):
         if type == 'GGUI':
@@ -145,6 +153,9 @@ class TaichiEnv:
         if self.loss is not None:
             self.loss.reset_grad()
 
+        for i in range(self.agent.n_sensors):
+            self.agent.sensors[i].reset_grad()
+
     def enable_grad(self):
         self.simulator.enable_grad()
 
@@ -171,9 +182,15 @@ class TaichiEnv:
         if self.loss:
             self.loss.step()
 
+        for i in range(self.agent.n_sensors):
+            self.agent.sensors[i].step()
+
         self.t += 1
 
     def step_grad(self, action=None):
+        for i in range(self.agent.n_sensors - 1, -1, -1):
+            self.agent.sensors[i].step_grad()
+
         if self.loss:
             self.loss.step_grad()
 
@@ -213,6 +230,11 @@ class TaichiEnv:
 
         if self.loss:
             self.loss.reset()
+
+        for i in range(self.agent.n_sensors):
+            self.agent.sensors[i].reset()
+
+
 
     def apply_agent_action_p(self, action_p):
         assert self.agent is not None, 'Environment has no agent to execute action.'

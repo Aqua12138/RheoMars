@@ -1,0 +1,29 @@
+type: AgentRigid
+effectors:
+  - type: Rigid
+    params:
+      init_pos: (0.5, 0.5, 0.5)
+      init_euler: (0.0, 0.0, 0.0)
+      action_dim: 3
+      action_scale_p: (1.0, 1.0, 1.0)
+      action_scale_v: (1.0, 1.0, 1.0)
+    mesh:
+      file: plate.obj
+      scale: (0.2, 0.2, 0.2)
+      euler: (0.0, 0.0, 0.0)
+      material: PLATE
+      softness: 100.0
+    boundary:
+      type: cube
+      lower: (0.05, 0.25, 0.05)
+      upper: (0.95, 0.95, 0.35)
+sensors:
+  - type: GridSensor3D
+    params:
+      cell_arc: 2
+      lat_angle_north: 90
+      lat_angle_south: 90
+      lon_angle: 180
+      max_distance: 1
+      min_distance: 0
+      distance_normalization: 1

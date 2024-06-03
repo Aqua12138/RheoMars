@@ -141,3 +141,19 @@ def compute_camera_angle(camera_pos, camera_lookat):
     angle_z = 0.0
 
     return np.array([angle_x, angle_y, angle_z])
+
+# grid sensor
+@ti.func
+def quaternion_to_rotation_matrix(a, b, c, d):
+    # a, b, c, d represent the quaternion components
+    R = ti.Matrix.zero(ti.f32, 3, 3)
+    R[0, 0] = 1 - 2 * c**2 - 2 * d**2
+    R[0, 1] = 2 * b * c - 2 * a * d
+    R[0, 2] = 2 * b * d + 2 * a * c
+    R[1, 0] = 2 * b * c + 2 * a * d
+    R[1, 1] = 1 - 2 * b**2 - 2 * d**2
+    R[1, 2] = 2 * c * d - 2 * a * b
+    R[2, 0] = 2 * b * d - 2 * a * c
+    R[2, 1] = 2 * c * d + 2 * a * b
+    R[2, 2] = 1 - 2 * b**2 - 2 * c**2
+    return R

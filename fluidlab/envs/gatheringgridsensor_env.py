@@ -10,7 +10,7 @@ from fluidlab.fluidengine.taichi_env import TaichiEnv
 from fluidlab.fluidengine.losses import *
 
 
-class GatheringEnv(FluidEnv):
+class GatheringGridSensorEnv(FluidEnv):
     def __init__(self, version, loss=True, loss_type='diff', seed=None, renderer_type='GGUI'):
 
         # Gathering_pos-v0.pkl ShapeMatchingLoss(DynamicDistanceLoss)
@@ -50,7 +50,10 @@ class GatheringEnv(FluidEnv):
 
     def setup_agent(self):
         agent_cfg = CfgNode(new_allowed=True)
-        agent_cfg.merge_from_file(get_cfg_path('agent_gathering.yaml'))
+        agent_cfg.merge_from_file(get_cfg_path('agent_gathering_gridsensor.yaml'))
+        if self.target_file is not None:
+            for sensor in agent_cfg.sensors:
+                sensor["params"]["target_file"] = self.target_file
         self.taichi_env.setup_agent(agent_cfg)
         self.agent = self.taichi_env.agent
 
@@ -129,3 +132,9 @@ class GatheringEnv(FluidEnv):
 
     def trainable_policy(self, optim_cfg, init_range):
         return GatheringPolicy(optim_cfg, init_range, self.agent.action_dim, self.horizon_action, self.action_range)
+
+    def get_obs(self):
+        obs = []
+        for sensor in self.agent.sensors:
+            obs.append(sensor.get_obs())
+        return obs

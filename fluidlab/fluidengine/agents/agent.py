@@ -3,7 +3,9 @@ import numpy as np
 import yaml
 import torch
 from fluidlab.fluidengine.effectors import *
+from fluidlab.fluidengine.sensors import *
 from fluidlab.utils.misc import *
+
 
 @ti.data_oriented
 class Agent:
@@ -26,6 +28,7 @@ class Agent:
         assert self.collide_type in ['particle', 'grid', 'both']
 
         self.effectors = []
+        self.sensors = []
         self.action_dims = [0]
 
     def add_effector(self, type, params, mesh_cfg, boundary_cfg):
@@ -43,12 +46,23 @@ class Agent:
         self.effectors.append(effector)
         self.action_dims.append(self.action_dims[-1] + effector.action_dim)
 
+    def add_sensor(self, type, params):
+        sensor = eval(type)(
+            horizon=self.max_action_steps_global,
+            **params,
+        )
+
+        self.sensors.append(sensor)
+
     def build(self, sim):
         self.n_effectors = len(self.effectors)
+        self.n_sensors = len(self.sensors)
         self.sim = sim
 
         for effector in self.effectors:
             effector.build()
+        for sensor in self.sensors:
+            sensor.build(sim)
 
     def reset_grad(self):
         for i in range(self.n_effectors):
