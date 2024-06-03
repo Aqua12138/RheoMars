@@ -8,7 +8,7 @@ import pickle as pkl
 @ti.data_oriented
 class GridSensor:
     def __init__(self, horizon):
-        self.horizon = horizon
+        self.horizon = horizon+1
 
     def reset(self):
         self.clear_grid_sensor()
@@ -42,7 +42,6 @@ class GridSensor:
         self.grid_sensor = grid_state.field(shape=(self.horizon, self.M, self.N, self.n_bodies), needs_grad=True,
                                             layout=ti.Layout.SOA)
 
-        self.reset()
 
     def load_target(self, path):
         targets = pkl.load(open(path, 'rb'))

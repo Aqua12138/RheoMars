@@ -194,28 +194,28 @@ class GridSensor3D(GridSensor):
             grid_sensor[i, j, k] = self.grid_sensor[s, i, j, k].distance
 
     def step(self):
-        self.transform_point_particle(self.sim.cur_step_global-1, self.sim.cur_substep_local)
-        self.compute_lat_lon_particle(self.sim.cur_step_global-1)
-        self.normal_distance_particle(self.sim.cur_step_global-1)
+        self.transform_point_particle(self.sim.cur_step_global, self.sim.cur_substep_local)
+        self.compute_lat_lon_particle(self.sim.cur_step_global)
+        self.normal_distance_particle(self.sim.cur_step_global)
 
         if self.target_file is not None:
-            self.transform_target_particle(self.sim.cur_step_global-1, self.sim.cur_substep_local)
-            self.compute_lat_lon_target(self.sim.cur_step_global-1)
-            self.normal_distance_target(self.sim.cur_step_global-1)
+            self.transform_target_particle(self.sim.cur_step_global, self.sim.cur_substep_local)
+            self.compute_lat_lon_target(self.sim.cur_step_global)
+            self.normal_distance_target(self.sim.cur_step_global)
 
     def step_grad(self):
         if self.target_file is not None:
-            self.normal_distance_target.grad(self.sim.cur_step_global-1)
-            self.compute_lat_lon_target.grad(self.sim.cur_step_global-1)
-            self.transform_target_particle.grad(self.sim.cur_step_global-1, self.sim.cur_substep_local)
+            self.normal_distance_target.grad(self.sim.cur_step_global)
+            self.compute_lat_lon_target.grad(self.sim.cur_step_global)
+            self.transform_target_particle.grad(self.sim.cur_step_global, self.sim.cur_substep_local)
 
-        self.normal_distance_particle.grad(self.sim.cur_step_global-1)
-        self.compute_lat_lon_particle.grad(self.sim.cur_step_global-1)
-        self.transform_point_particle.grad(self.sim.cur_step_global-1, self.sim.cur_substep_local)
+        self.normal_distance_particle.grad(self.sim.cur_step_global)
+        self.compute_lat_lon_particle.grad(self.sim.cur_step_global)
+        self.transform_point_particle.grad(self.sim.cur_step_global, self.sim.cur_substep_local)
 
     def get_obs(self):
         grid_sensor = torch.zeros((self.M, self.N, self.n_bodies), dtype=torch.float32, device=self.device)
-        self.get_sensor_data_kernel(self.sim.cur_step_global-1, grid_sensor)
+        self.get_sensor_data_kernel(self.sim.cur_step_global, grid_sensor)
         return grid_sensor
 
     def clear_grid_sensor(self):
@@ -226,6 +226,8 @@ class GridSensor3D(GridSensor):
             self.targets.grad.fill(0)
         self.grid_sensor.fill(0)
         self.grid_sensor.grad.fill(0)
+        self.step()
+
 
     def reset_grad(self):
         super().reset_grad()

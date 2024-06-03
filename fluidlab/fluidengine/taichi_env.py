@@ -185,6 +185,13 @@ class TaichiEnv:
         for i in range(self.agent.n_sensors):
             self.agent.sensors[i].step()
 
+        filename = "/home/zhx/PycharmProjects/fluids/FluidLab-5-13/debug/gridsensor3d/grid_{:03d}.npy".format(self.t)
+        obs = self.agent.sensors[0].get_obs()
+        np.save(filename, obs)
+
+        # filename = "/home/zhx/PycharmProjects/fluids/FluidLab-5-13/debug/gridsensor3d/grid_{:03d}.npy".format(self.t)
+        # np.save(filename, obs['gridsensor3'])
+
         self.t += 1
 
     def step_grad(self, action=None):
@@ -233,8 +240,6 @@ class TaichiEnv:
 
         for i in range(self.agent.n_sensors):
             self.agent.sensors[i].reset()
-
-
 
     def apply_agent_action_p(self, action_p):
         assert self.agent is not None, 'Environment has no agent to execute action.'

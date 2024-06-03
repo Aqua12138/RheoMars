@@ -51,6 +51,9 @@ class GatheringEnv(FluidEnv):
     def setup_agent(self):
         agent_cfg = CfgNode(new_allowed=True)
         agent_cfg.merge_from_file(get_cfg_path('agent_gathering.yaml'))
+        if self.target_file is not None and hasattr(agent_cfg, "sensors"):
+            for sensor in agent_cfg.sensors:
+                sensor["params"]["target_file"] = self.target_file
         self.taichi_env.setup_agent(agent_cfg)
         self.agent = self.taichi_env.agent
 

@@ -8,6 +8,6 @@ SOLVER:
     p: ((0.5, 0.55, 0.2), (0.5, 0.55, 0.2))
   optim:
     type: 'Adam'
-    lr: 1e-4
+    lr: 5e-5
     beta_1: 0.9
     beta_2: 0.99

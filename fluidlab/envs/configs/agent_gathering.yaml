@@ -17,3 +17,13 @@ effectors:
       type: cube
       lower: (0.05, 0.25, 0.05)
       upper: (0.95, 0.95, 0.35)
+sensors:
+  - type: GridSensor3D
+    params:
+      cell_arc: 2
+      lat_angle_north: 90
+      lat_angle_south: 90
+      lon_angle: 180
+      max_distance: 1
+      min_distance: 0
+      distance_normalization: 1
