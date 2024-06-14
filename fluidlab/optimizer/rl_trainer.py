@@ -24,8 +24,8 @@ class PPO_trainer:
             "seed": cfg.EXP.seed,
             "perc_type" : args.perc_type,
         }
-        self.envs = make_vec_env(env_id=cfg.EXP.env_name, n_envs=10, env_kwargs=env_kwargs, vec_env_cls=DummyVecEnv)
-        self.model = PPO("MultiInputPolicy", self.envs, verbose=1)
+        self.envs = make_vec_env(env_id=cfg.EXP.env_name, n_envs=1, env_kwargs=env_kwargs, vec_env_cls=DummyVecEnv)
+        self.model = PPO("MultiInputPolicy", self.envs, verbose=1, tensorboard_log="./ppo_gather_tensorboard/")
     def solver(self):
-        self.model.learn(total_timesteps=int(2e5))
-        self.model.save("dqn_lunar")
+        self.model.learn(total_timesteps=int(2e6))
+        self.model.save("ppo_test2")

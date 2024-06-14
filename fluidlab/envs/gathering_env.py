@@ -11,7 +11,7 @@ from fluidlab.fluidengine.losses import *
 
 
 class GatheringEnv(FluidEnv):
-    def __init__(self, version, loss=True, loss_type='diff', seed=None, renderer_type='GGUI'):
+    def __init__(self, version, loss=True, loss_type='diff', seed=None, renderer_type='GGUI', perc_type="physics"):
 
         # Gathering_pos-v0.pkl ShapeMatchingLoss(DynamicDistanceLoss)
         # Gathering_grid-v0.pkl SDFDensityLoss
@@ -36,6 +36,7 @@ class GatheringEnv(FluidEnv):
         self.loss_type = loss_type
         self.action_range = np.array([-0.0003, 0.0003])
         self.renderer_type = renderer_type
+        self.perc_type = perc_type
 
         # create a taichi env
         self.taichi_env = TaichiEnv(
