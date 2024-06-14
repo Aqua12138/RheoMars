@@ -37,3 +37,11 @@ sensors:
       min_distance: 0
       distance_normalization: 1
 ```
+
+# 添加环境
+- 定义envs环境
+
+# ppo 训练
+```shell
+python fluidlab/run.py --cfg_file configs/exp_gathering_gridsensor.yaml --renderer_type GGUI --rl ppo --exp_name=test --perc_type sensor
+```
